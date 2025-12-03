@@ -12,25 +12,51 @@ platform/
     └── bootstrap.yaml
 ```
 
-**What was created:**
-- `platform/kustomization.yaml` - References argocd folder
-- `platform/argocd/kustomization.yaml` - References bootstrap.yaml
-- `platform/argocd/bootstrap.yaml` - App-of-Apps root Application
+### Job 2: MetalLB Load Balancer (COMPLETED)
 
-**Bootstrap Application Details:**
-- **Name:** platform-root
-- **Namespace:** argocd
-- **Repo:** https://github.com/Ealoltm/k8s-gitops.git
-- **Branch:** main
-- **Path:** platform
+```
+platform/
+├── kustomization.yaml (updated)
+├── argocd/
+│   ├── kustomization.yaml
+│   └── bootstrap.yaml
+└── metallb/
+    ├── kustomization.yaml
+    └── base/
+        ├── kustomization.yaml
+        ├── metallb-application.yaml
+        └── metallb-config.yaml
+```
+
+**What was created:**
+- `platform/metallb/kustomization.yaml` - References base folder
+- `platform/metallb/base/kustomization.yaml` - References metallb-application.yaml and metallb-config.yaml
+- `platform/metallb/base/metallb-application.yaml` - ArgoCD Application for MetalLB native manifests
+- `platform/metallb/base/metallb-config.yaml` - IPAddressPool (10.10.10.200-250) + L2Advertisement
+
+**MetalLB Application Details:**
+- **Name:** metallb
+- **Repo:** https://github.com/metallb/metallb.git
+- **Version:** v0.13.12
+- **Install:** Native manifests (config/manifests) - works with Cilium kube-proxy replacement
+- **Namespace:** metallb-system (auto-created)
 - **Sync Policy:** Automated with prune + selfHeal
-- **Sync Options:** CreateNamespace=true
+- **IP Range:** 10.10.10.200-10.10.10.250
 
 **To Deploy:**
 ```bash
-kubectl apply -f platform/argocd/bootstrap.yaml
+# Bootstrap will automatically deploy this via platform-root Application
+kubectl -n argocd get application metallb -w
 ```
+
+## Deployment Flow
+
+1. Apply `platform/argocd/bootstrap.yaml` → platform-root Application syncs
+2. platform-root syncs `platform/` → ArgoCD reads root kustomization.yaml
+3. Root kustomization includes both `argocd/` and `metallb/`
+4. MetalLB Application deploys native manifests from metallb repo
+5. MetalLB config creates IPAddressPool and L2Advertisement
 
 ## Next Steps
 
-Job 2 will add MetalLB and additional platform components (cert-manager, gateway-api, sealed-secrets, monitoring, image-updater, velero, and sample apps).
+Job 3 will add Gateway API and Cilium Gateway integration.
