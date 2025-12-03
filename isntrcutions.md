@@ -1,125 +1,177 @@
-✅ VS Code Copilot Prompt — GitOps Repository (Multi-Env, Platform Phase)
+📌 TASK
 
-You are generating a Kubernetes GitOps repository structure for Argo CD using a multi-environment “app-of-apps” pattern.
-Follow these exact requirements:
+Generate the following directory structure and the file contents inside.
+All files must be valid YAML.
+All kustomization.yaml files must use apiVersion: kustomize.config.k8s.io/v1beta1.
 
-🎯 Overall Goal
-
-Create a complete folder + file structure for a GitOps repository called k8s-gitops, using:
-
-Argo CD as the GitOps controller
-
-Multi-environment layout (home-lab, dev, stage, prod)
-
-Platform components defined in Git
-
-Argo CD bootstrapped via a root Application
-
-MetalLB config managed via GitOps
-
-Argo CD managing its own Helm chart
-
-Declarative, production-grade layout
-
-📁 Required Directory Structure
-
-Create the following folder tree:
-
+📁 REPO STRUCTURE TO GENERATE
 k8s-gitops/
-  clusters/
-    home-lab/
-      apps.yaml
-    dev/
-      apps.yaml
-    stage/
-      apps.yaml
-    prod/
-      apps.yaml
+├── clusters/
+│   ├── home-lab/
+│   │   ├── apps.yaml
+│   │   └── kustomization.yaml
+│   ├── dev/
+│   │   └── kustomization.yaml
+│   ├── stage/
+│   │   └── kustomization.yaml
+│   └── prod/
+│       └── kustomization.yaml
+└── platform/
+    ├── kustomization.yaml
+    ├── argocd/
+    │   ├── kustomization.yaml
+    │   └── base/
+    │       ├── kustomization.yaml
+    │       └── namespace.yaml
+    ├── metallb/
+    │   ├── kustomization.yaml
+    │   └── base/
+    │       ├── kustomization.yaml
+    │       ├── namespace.yaml
+    │       └── metallb-config.yaml
 
-  platform/
-    metallb/
-      base/
-        metallb-config.yaml
-      kustomization.yaml
+📄 FILE CONTENTS TO GENERATE
+1️⃣ clusters/home-lab/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - apps.yaml
 
-    argocd/
-      base/
-        argocd-application.yaml
-      kustomization.yaml
+2️⃣ clusters/home-lab/apps.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/REPLACE_ME/k8s-gitops.git
+    targetRevision: main
+    path: platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
 
 
-(Do not generate empty folders — each folder must contain the proper files.)
+(Replace repo URL)
 
-📦 MetalLB GitOps Manifests
+3️⃣ Empty cluster placeholders
 
-Inside platform/metallb/base/metallb-config.yaml, generate the following exact manifests:
+For dev, stage, prod:
 
-IPAddressPool named kube-pool
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources: []
 
-L2Advertisement named kube-l2adv
+4️⃣ platform/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./argocd
+  - ./metallb
 
-Namespace: metallb-system
+5️⃣ platform/argocd/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./base
 
-IP range: 10.10.10.200-10.10.10.250
+6️⃣ platform/argocd/base/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: argocd
+resources:
+  - namespace.yaml
 
-🚀 Argo CD GitOps (Self-Managed)
+7️⃣ platform/argocd/base/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd
 
-Inside platform/argocd/base/argocd-application.yaml, generate an Argo CD Application that:
+8️⃣ platform/metallb/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./base
 
-Installs the argo-cd Helm chart
+9️⃣ platform/metallb/base/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: metallb-system
+resources:
+  - namespace.yaml
+  - metallb-config.yaml
 
-From repo https://argoproj.github.io/argo-helm
+🔟 platform/metallb/base/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: metallb-system
 
-Into namespace argocd
+1️⃣1️⃣ platform/metallb/base/metallb-config.yaml
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: default
+  namespace: metallb-system
+spec:
+  addresses:
+    - 10.10.10.200-10.10.10.250
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: default
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+    - default
 
-Uses LoadBalancer type with IP 10.10.10.200
+📌 ADDITIONAL REQUIREMENT
 
-Sets configs.params.server.insecure=true
+Also generate this bootstrap file (output separately):
 
-Enables automated sync (prune + self-heal)
+platform/argocd/bootstrap.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: home-lab-root
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/REPLACE_ME/k8s-gitops.git
+    targetRevision: main
+    path: clusters/home-lab
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
 
-🧩 Root App-of-Apps (Environment Scoped)
+📌 OUTPUT FORMAT
 
-Inside clusters/home-lab/apps.yaml, generate:
+Copilot should output all files in a single markdown block, with proper directory headings, like:
 
-One Application referencing platform/metallb/base
+# clusters/home-lab/kustomization.yaml
+<file content>
 
-One Application referencing platform/argocd/base
+# clusters/home-lab/apps.yaml
+<file content>
+...
 
-Both pointing to the Git repo (placeholder variable: <GITHUB_URL>)
+📌 DONE
 
-Include:
-
-syncPolicy.automated.prune = true
-
-syncPolicy.automated.selfHeal = true
-
-syncOptions = ["CreateNamespace=true"]
-
-📝 Additional Requirements
-
-Use valid YAML, no placeholders except <GITHUB_URL>
-
-All manifests must pass Kubernetes + ArgoCD validation
-
-Avoid indentation mistakes
-
-Follow Argo CD best practices for multi-environment GitOps
-
-Output EVERYTHING in a single response:
-
-Directory tree
-
-All YAML files
-
-All kustomization.yaml files
-
-Output Format
-
-Respond with:
-
-Repository folder tree (Markdown code block)
-
-Each file as a separate YAML code block with its path above it
-
-Do NOT explain. Only generate the structure + files.
+Generate everything exactly as described. Only output the files and their contents.
