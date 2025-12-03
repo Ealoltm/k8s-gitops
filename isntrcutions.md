@@ -28,35 +28,45 @@ platform/
         └── metallb-config.yaml
 ```
 
-**What was created:**
-- `platform/metallb/kustomization.yaml` - References base folder
-- `platform/metallb/base/kustomization.yaml` - References metallb-application.yaml and metallb-config.yaml
-- `platform/metallb/base/metallb-application.yaml` - ArgoCD Application for MetalLB native manifests
-- `platform/metallb/base/metallb-config.yaml` - IPAddressPool (10.10.10.200-250) + L2Advertisement
+### Job 3: Gateway API CRDs (COMPLETED)
 
-**MetalLB Application Details:**
-- **Name:** metallb
-- **Repo:** https://github.com/metallb/metallb.git
-- **Version:** v0.13.12
-- **Install:** Native manifests (config/manifests) - works with Cilium kube-proxy replacement
-- **Namespace:** metallb-system (auto-created)
+```
+platform/
+├── kustomization.yaml (updated)
+├── argocd/
+│   ├── kustomization.yaml
+│   └── bootstrap.yaml
+├── metallb/
+│   ├── kustomization.yaml
+│   └── base/
+│       ├── kustomization.yaml
+│       ├── metallb-application.yaml
+│       └── metallb-config.yaml
+└── gateway-api/
+    ├── kustomization.yaml
+    └── base/
+        ├── kustomization.yaml
+        └── gateway-api-application.yaml
+```
+
+**What was created:**
+- `platform/gateway-api/kustomization.yaml` - References base folder
+- `platform/gateway-api/base/kustomization.yaml` - References gateway-api-application.yaml
+- `platform/gateway-api/base/gateway-api-application.yaml` - ArgoCD Application for Gateway API CRDs v1.0.0
+
+**Gateway API Application Details:**
+- **Name:** gateway-api-crds
+- **Repo:** https://github.com/kubernetes-sigs/gateway-api.git
+- **Version:** v1.0.0
+- **Install:** CRD manifests (config/crd/kubernetes)
+- **Namespace:** kube-system
 - **Sync Policy:** Automated with prune + selfHeal
-- **IP Range:** 10.10.10.200-10.10.10.250
 
 **To Deploy:**
 ```bash
-# Bootstrap will automatically deploy this via platform-root Application
-kubectl -n argocd get application metallb -w
+kubectl -n argocd get application gateway-api-crds -w
 ```
-
-## Deployment Flow
-
-1. Apply `platform/argocd/bootstrap.yaml` → platform-root Application syncs
-2. platform-root syncs `platform/` → ArgoCD reads root kustomization.yaml
-3. Root kustomization includes both `argocd/` and `metallb/`
-4. MetalLB Application deploys native manifests from metallb repo
-5. MetalLB config creates IPAddressPool and L2Advertisement
 
 ## Next Steps
 
-Job 3 will add Gateway API and Cilium Gateway integration.
+Job 4 will add Cilium Gateway Controller and Ingress configuration.
